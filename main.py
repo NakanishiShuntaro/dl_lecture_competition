@@ -118,6 +118,7 @@ def main(args: DictConfig):
     #   optimizer
     # ------------------
     optimizer = torch.optim.Adam(model.parameters(), lr=args.train.initial_learning_rate, weight_decay=args.train.weight_decay)
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=args.train.learning_rate_decay)
     # ------------------
     #   Start training
     # ------------------
@@ -149,6 +150,8 @@ def main(args: DictConfig):
             optimizer.step()
 
             total_loss += loss.item()
+        if epoch % 4 == 3:
+            scheduler.step()
         print(f'Epoch {epoch+1}, Loss: {total_loss / len(train_data)}')
 
     # Create the directory if it doesn't exist
