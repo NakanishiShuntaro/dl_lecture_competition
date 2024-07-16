@@ -318,7 +318,7 @@ class Sequence(Dataset):
     
     def get_data(self, index) -> Dict[str, any]:
         ts_start: int = self.timestamps_flow[index] - self.delta_t_us
-        ts_end: int = self.timestamps_flow[index]
+        ts_end: int = self.timestamps_flow[index] + self.delta_t_us
 
         file_index = self.indices[index]
 
@@ -483,8 +483,8 @@ class SequenceRecurrent(Sequence):
         sequence.append(sample)
 
         # Data augmentation according to first sample
-        crop_window = None
-        flip = None
+        crop_window = True
+        flip = True
         if 'crop_window' in sample.keys():
             crop_window = sample['crop_window']
         if 'flipped' in sample.keys():

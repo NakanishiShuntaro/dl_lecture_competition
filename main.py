@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Dict, Any
 import os
 import time
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'src')))
 
 
 class RepresentationType(Enum):
@@ -127,8 +129,20 @@ def main(args: DictConfig):
             batch: Dict[str, Any]
             event_image = batch["event_volume"].to(device) # [B, 4, 480, 640]
             ground_truth_flow = batch["flow_gt"].to(device) # [B, 2, 480, 640]
-            flow = model(event_image) # [B, 2, 480, 640]
-            loss: torch.Tensor = compute_epe_error(flow, ground_truth_flow)
+            ground_truth_flow0 = torch.nn.functional.interpolate(ground_truth_flow, scale_factor=0.125, mode='bilinear', align_corners=False)
+            ground_truth_flow1 = torch.nn.functional.interpolate(ground_truth_flow, scale_factor=0.25, mode='bilinear', align_corners=False)
+            ground_truth_flow2 = torch.nn.functional.interpolate(ground_truth_flow, scale_factor=0.5, mode='bilinear', align_corners=False)
+            flow_dict = model(event_image) # [B, 2, 480, 640]
+            flow_0 = flow_dict['flow0']
+            flow_1 = flow_dict['flow1']
+            flow_2 = flow_dict['flow2']
+            flow_3 = flow_dict['flow3']
+            
+            loss_0 = compute_epe_error(flow_0, ground_truth_flow0)
+            loss_1 = compute_epe_error(flow_1, ground_truth_flow1)
+            loss_2 = compute_epe_error(flow_2, ground_truth_flow2)
+            loss_3 = compute_epe_error(flow_3, ground_truth_flow)
+            loss: torch.Tensor =  loss_1 + loss_2 + loss_3
             print(f"batch {i} loss: {loss.item()}")
             optimizer.zero_grad()
             loss.backward()
@@ -156,14 +170,15 @@ def main(args: DictConfig):
         print("start test")
         for batch in tqdm(test_data):
             batch: Dict[str, Any]
-            event_image = batch["event_volume_old"].to(device)
-            batch_flow = model(event_image) # [1, 2, 480, 640]
+            event_image = batch["event_volume"].to(device)
+            batch_flow_dict = model(event_image) # [1, 2, 480, 640]
+            batch_flow = batch_flow_dict['flow3']
             flow = torch.cat((flow, batch_flow), dim=0)  # [N, 2, 480, 640]
         print("test done")
     # ------------------
     #  save submission
     # ------------------
-    file_name = "submission.npy"
+    file_name = "submission"
     save_optical_flow_to_npy(flow, file_name)
 
 if __name__ == "__main__":
